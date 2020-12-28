@@ -1,0 +1,12 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta1
+kind: GitRepository
+metadata:
+  name: config
+  namespace: flux-system
+spec:
+  interval: 2m
+  ref:
+    branch: main
+  secretRef:
+    name: config-ssh-credentials
+  url: ssh://gitserver/srv/git/config
