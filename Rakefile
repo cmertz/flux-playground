@@ -115,19 +115,31 @@ namespace :flux do
   end
 end
 
-desc 'Setup local config dir'
-file 'config' do
-  sh <<~ENDOFSCRIPT
-    git init --initial-branch=main config
-    cd config
-    git config user.name root
-    git config user.email root@example.com
-    git commit -a -m 'initial'
-    git remote add origin ssh://git@#{node_ips.first}:#{port}/srv/git/config
-    git push origin main
-  ENDOFSCRIPT
+namespace :config do
+  desc 'Setup local config dir'
+  file 'config/.git' do
+    Dir.chdir('config') do
+      sh <<~ENDOFSCRIPT
+        git init --initial-branch=main .
+        git config user.name root
+        git config user.email root@example.com
+        git remote add origin ssh://git@#{node_ips.first}:#{port}/srv/git/config
+      ENDOFSCRIPT
+    end
+  end
+  CLEAN << 'config/.git'
+
+  desc 'Push config to remote config git repository'
+  task push: 'config/.git' do
+    Dir.chdir('config') do
+      sh <<~ENDOFSCRIPT
+        git add .
+        git commit -m '...'
+        GIT_SSH_COMMAND="ssh -i ../id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" git push origin main
+      ENDOFSCRIPT
+    end
+  end
 end
-CLEAN << 'config'
 
 def port
   YAML.load(`kubectl get svc gitserver -n flux-system -oyaml`)['spec']['ports'].first['nodePort']

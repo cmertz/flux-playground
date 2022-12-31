@@ -5,3 +5,4 @@ gitserver/ssh_host_key
 gitserver/ssh_host_key.pub
 id
 id.pub
+config/.git
