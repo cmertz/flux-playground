@@ -16,13 +16,13 @@ task setup: %w[kind:create flux:install kind:load gitserver:install flux:install
 desc 'Reset'
 task reset: %w[clean kind:delete setup]
 
-desc 'Generate ssh client key'
+# Generate ssh client key
 file 'id' do
   ssh_key('id')
 end
 CLEAN << 'id'
 
-desc 'Generate ssh client public key'
+# Generate ssh client public key
 file 'id.pub' => 'id' do
   ssh_public_key('id', 'id.pub')
 end
@@ -54,19 +54,19 @@ namespace :kind do
 end
 
 namespace :gitserver do
-  desc 'Generate ssh host key'
+  # Generate ssh host key
   file 'gitserver/ssh_host_key' do
     ssh_key('gitserver/ssh_host_key')
   end
   CLEAN << 'gitserver/ssh_host_key'
 
-  desc 'Generate ssh host public key'
+  # Generate ssh host public key
   file 'gitserver/ssh_host_key.pub' => 'gitserver/ssh_host_key' do
     ssh_key('gitserver/ssh_host_key', 'gitserver/ssh_host_key.pub')
   end
   CLEAN << 'gitserver/ssh_host_key.pub'
 
-  desc 'Generate authorized_keys file'
+  # Generate authorized_keys file
   file 'gitserver/authorized_keys' => 'id.pub' do
     FileUtils.cp('id.pub', 'gitserver/authorized_keys')
   end
@@ -84,7 +84,7 @@ namespace :gitserver do
 end
 
 namespace :flux do
-  desc 'Generate flux credentials secret for git over ssh'
+  # Generate flux credentials secret for git over ssh
   file 'flux/config-ssh-credentials.yaml': %w[id id.pub gitserver/ssh_host_key.pub] do
     File.write('flux/config-ssh-credentials.yaml', <<~ENDOFTEMPLATE
       apiVersion: v1
@@ -116,7 +116,7 @@ namespace :flux do
 end
 
 namespace :config do
-  desc 'Setup local config dir'
+  # Setup git repo in local config dir
   file 'config/.git' do
     Dir.chdir('config') do
       sh <<~ENDOFSCRIPT
