@@ -6,3 +6,9 @@ gitserver/ssh_host_key.pub
 id
 id.pub
 config/.git
+
+# ignore everything added under `config/default` by default
+#
+# add manifests explicitly if you wish to keep them
+# i.e., `git add -f config/default/STUFF`
+config/default/*
