@@ -6,14 +6,6 @@ require 'base64'
 require 'yaml'
 require 'json'
 
-def ssh_key(filename)
-  sh "ssh-keygen -q -N \"\" -t ed25519 -f #{filename}"
-end
-
-def ssh_public_key(private_key_filename, filename)
-  sh "ssh-keygen -y -f #{private_key_filename} > #{filename}"
-end
-
 task :default do
   sh 'rake -T'
 end
@@ -56,16 +48,6 @@ CLEAN << 'gitserver/authorized_keys'
 
 desc 'Generate flux credentials secret for git over ssh'
 file 'flux/config-ssh-credentials.yaml': %w[id id.pub gitserver/ssh_host_key.pub] do
-  def oneline(str)
-    str.
-      split("\n").
-      join('')
-  end
-
-  def inline_base64(filename)
-    oneline(Base64.encode64(File.read(filename)))
-  end
-
   File.write('flux/config-ssh-credentials.yaml', <<~ENDOFTEMPLATE
     apiVersion: v1
     kind: Secret
@@ -133,19 +115,6 @@ namespace :flux do
   end
 end
 
-def port
-  YAML.load(`kubectl get svc gitserver -n flux-system -oyaml`)['spec']['ports'].first['nodePort']
-end
-
-def node_ips
-  `kubectl get nodes -ojsonpath='{ .items[*].status.addresses }'`.
-    split(" ").
-    map{|e| JSON.parse(e)}.
-    map{|e| e.first}.
-    reject{|e| e['type'] == 'Hostname'}.
-    map{|e| e['address']}
-end
-
 desc 'Setup local config dir'
 file 'config' do
   sh <<~ENDOFSCRIPT
@@ -159,3 +128,34 @@ file 'config' do
   ENDOFSCRIPT
 end
 CLEAN << 'config'
+
+def port
+  YAML.load(`kubectl get svc gitserver -n flux-system -oyaml`)['spec']['ports'].first['nodePort']
+end
+
+def node_ips
+  `kubectl get nodes -ojsonpath='{ .items[*].status.addresses }'`.
+    split(" ").
+    map{|e| JSON.parse(e)}.
+    map{|e| e.first}.
+    reject{|e| e['type'] == 'Hostname'}.
+    map{|e| e['address']}
+end
+
+def ssh_key(filename)
+  sh "ssh-keygen -q -N \"\" -t ed25519 -f #{filename}"
+end
+
+def ssh_public_key(private_key_filename, filename)
+  sh "ssh-keygen -y -f #{private_key_filename} > #{filename}"
+end
+
+def oneline(str)
+  str.
+    split("\n").
+    join('')
+end
+
+def inline_base64(filename)
+  oneline(Base64.encode64(File.read(filename)))
+end
