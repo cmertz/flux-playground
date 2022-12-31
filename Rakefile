@@ -11,7 +11,7 @@ task :default do
 end
 
 desc 'Setup a complete system'
-task setup: %w[kind:create flux:install kind:load gitserver:install flux:install-crs]
+task setup: %w[kind:create registry:start flux:install kind:load gitserver:install flux:install-crs]
 
 desc 'Reset'
 task reset: %w[clean kind:delete setup]
@@ -80,6 +80,35 @@ namespace :gitserver do
   desc 'Install the gitserver manifests on the kind cluster'
   task install: %w[kind:running kind:load] do
     sh 'kubectl apply -f gitserver/kubernetes.yaml'
+  end
+end
+
+namespace :registry do
+  desc 'Start a local docker registry for use in a kind cluster'
+  task :start do
+    sh <<~ENDOFSCRIPT
+      if [ "$(docker inspect -f '{{.State.Running}}' kind-registry 2>/dev/null || true)" != 'true' ]; then
+        docker run \
+          -d --restart=always -p "127.0.0.1:5001:5000" --name kind-registry \
+          registry:2
+      fi
+
+      if [ "$(docker inspect -f='{{json .NetworkSettings.Networks.kind}}' kind-registry)" = 'null' ]; then
+        docker network connect kind kind-registry
+      fi
+
+      cat <<EOF | kubectl apply -f -
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: local-registry-hosting
+        namespace: kube-public
+      data:
+        localRegistryHosting.v1: |
+          host: "localhost:5001"
+          help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
+      EOF
+    ENDOFSCRIPT
   end
 end
 
