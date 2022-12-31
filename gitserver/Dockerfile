@@ -18,6 +18,7 @@ RUN rm -rf /etc/ssh/*
 COPY ssh* /etc/ssh/
 
 RUN mkdir /srv/git/.ssh --parent &&\
+    git config --global init.defaultBranch main &&\
     git init --bare /srv/git/config
 
 COPY authorized_keys /srv/git/.ssh/authorized_keys
