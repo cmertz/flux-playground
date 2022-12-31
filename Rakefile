@@ -28,42 +28,6 @@ file 'id.pub' => 'id' do
 end
 CLEAN << 'id.pub'
 
-desc 'Generate ssh host key'
-file 'gitserver/ssh_host_key' do
-  ssh_key('gitserver/ssh_host_key')
-end
-CLEAN << 'gitserver/ssh_host_key'
-
-desc 'Generate ssh host public key'
-file 'gitserver/ssh_host_key.pub' => 'gitserver/ssh_host_key' do
-  ssh_key('gitserver/ssh_host_key', 'gitserver/ssh_host_key.pub')
-end
-CLEAN << 'gitserver/ssh_host_key.pub'
-
-desc 'Generate authorized_keys file'
-file 'gitserver/authorized_keys' => 'id.pub' do
-  FileUtils.cp('id.pub', 'gitserver/authorized_keys')
-end
-CLEAN << 'gitserver/authorized_keys'
-
-desc 'Generate flux credentials secret for git over ssh'
-file 'flux/config-ssh-credentials.yaml': %w[id id.pub gitserver/ssh_host_key.pub] do
-  File.write('flux/config-ssh-credentials.yaml', <<~ENDOFTEMPLATE
-    apiVersion: v1
-    kind: Secret
-    type: Opaque
-    metadata:
-        name: config-ssh-credentials
-        namespace: flux-system
-    data:
-        identity: #{inline_base64('id')}
-        identity.pub: #{inline_base64('id.pub')}
-        known_hosts: #{oneline(Base64.encode64("gitserver #{File.read('gitserver/ssh_host_key.pub')}"))}
-    ENDOFTEMPLATE
-  )
-end
-CLEAN << 'flux/config-ssh-credentials.yaml'
-
 namespace :kind do
   desc 'Load local docker images to kind nodes'
   task load: %w[gitserver:build] do
@@ -90,6 +54,24 @@ namespace :kind do
 end
 
 namespace :gitserver do
+  desc 'Generate ssh host key'
+  file 'gitserver/ssh_host_key' do
+    ssh_key('gitserver/ssh_host_key')
+  end
+  CLEAN << 'gitserver/ssh_host_key'
+
+  desc 'Generate ssh host public key'
+  file 'gitserver/ssh_host_key.pub' => 'gitserver/ssh_host_key' do
+    ssh_key('gitserver/ssh_host_key', 'gitserver/ssh_host_key.pub')
+  end
+  CLEAN << 'gitserver/ssh_host_key.pub'
+
+  desc 'Generate authorized_keys file'
+  file 'gitserver/authorized_keys' => 'id.pub' do
+    FileUtils.cp('id.pub', 'gitserver/authorized_keys')
+  end
+  CLEAN << 'gitserver/authorized_keys'
+
   desc 'Build gitserver docker image'
   task build: %w[gitserver/ssh_host_key gitserver/authorized_keys] do
     sh 'docker build gitserver -t gitserver'
@@ -102,6 +84,24 @@ namespace :gitserver do
 end
 
 namespace :flux do
+  desc 'Generate flux credentials secret for git over ssh'
+  file 'flux/config-ssh-credentials.yaml': %w[id id.pub gitserver/ssh_host_key.pub] do
+    File.write('flux/config-ssh-credentials.yaml', <<~ENDOFTEMPLATE
+      apiVersion: v1
+      kind: Secret
+      type: Opaque
+      metadata:
+          name: config-ssh-credentials
+          namespace: flux-system
+      data:
+          identity: #{inline_base64('id')}
+          identity.pub: #{inline_base64('id.pub')}
+          known_hosts: #{oneline(Base64.encode64("gitserver #{File.read('gitserver/ssh_host_key.pub')}"))}
+      ENDOFTEMPLATE
+    )
+  end
+  CLEAN << 'flux/config-ssh-credentials.yaml'
+
   desc 'Install flux via its cli on the kind cluster'
   task install: %w[kind:running flux/config-ssh-credentials.yaml] do
     sh 'flux install'
